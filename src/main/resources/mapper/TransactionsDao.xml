@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trafigura.equity.position.dao.TransactionsDao">
+  <resultMap id="BaseResultMap" type="com.trafigura.equity.position.entity.Transactions">
+    <id column="transaction_id" jdbcType="INTEGER" property="transactionId" />
+    <result column="trade_id" jdbcType="INTEGER" property="tradeId" />
+    <result column="version" jdbcType="INTEGER" property="version" />
+    <result column="security_code" jdbcType="VARCHAR" property="securityCode" />
+    <result column="quantity" jdbcType="INTEGER" property="quantity" />
+    <result column="operation" jdbcType="VARCHAR" property="operation" />
+    <result column="deal" jdbcType="VARCHAR" property="deal" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    transaction_id, trade_id, version, security_code, quantity, `operation`, deal
+  </sql>
+
+  <select id="list" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from transactions
+  </select>
+
+  <select id="selectByPrimaryKey" parameterType="java.lang.Integer" resultMap="BaseResultMap">
+    select 
+    <include refid="Base_Column_List" />
+    from transactions
+    where transaction_id = #{transactionId,jdbcType=INTEGER}
+  </select>
+  <select id="selectLatestVersion" parameterType="java.lang.String" resultType="java.lang.Integer">
+    select IFNULL(max(version),0) from transactions
+    where security_code = #{securityCode,jdbcType=VARCHAR}
+  </select>
+
+  <select id="selectLatestTradeid" parameterType="java.lang.String" resultType="java.lang.Integer">
+    select IFNULL(max(trade_id),0) from transactions
+    <if test="securityCode != null and securityCode != '' ">
+      where security_code = #{securityCode,jdbcType=VARCHAR}
+    </if>
+  </select>
+
+  <insert id="insert" keyColumn="transaction_id" keyProperty="transactionId" parameterType="com.trafigura.equity.position.entity.Transactions" useGeneratedKeys="true">
+    insert into transactions (trade_id, version, security_code, 
+      quantity, `operation`, deal
+      )
+    values (#{tradeId,jdbcType=INTEGER}, #{version,jdbcType=INTEGER}, #{securityCode,jdbcType=VARCHAR}, 
+      #{quantity,jdbcType=INTEGER}, #{operation,jdbcType=VARCHAR}, #{deal,jdbcType=VARCHAR}
+      )
+  </insert>
+</mapper>

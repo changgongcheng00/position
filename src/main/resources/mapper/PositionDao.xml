@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.trafigura.equity.position.dao.PositionDao">
+  <resultMap id="BaseResultMap" type="com.trafigura.equity.position.entity.Position">
+    <id column="id" jdbcType="INTEGER" property="id" />
+    <result column="security_code" jdbcType="VARCHAR" property="securityCode" />
+    <result column="quantity" jdbcType="INTEGER" property="quantity" />
+  </resultMap>
+  <sql id="Base_Column_List">
+    id, security_code, quantity
+  </sql>
+
+  <select id="getBySecurityCode" parameterType="java.lang.String" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from position
+    where security_code = #{securityCode,jdbcType=VARCHAR}
+  </select>
+  <insert id="saveOrUpdate" parameterType="com.trafigura.equity.position.entity.Position">
+    <selectKey keyProperty="tableSize" resultType="int" order="BEFORE">
+      select count(id) from position
+      where security_code = #{securityCode,jdbcType=VARCHAR}
+    </selectKey>
+    <if test="tableSize >0">
+      update position set quantity = #{quantity,jdbcType=INTEGER}
+      where security_code = #{securityCode,jdbcType=VARCHAR}
+    </if>
+    <if test="tableSize == 0">
+      insert into position (security_code, quantity)
+      values(#{securityCode,jdbcType=VARCHAR},#{quantity,jdbcType=INTEGER})
+    </if>
+
+  </insert>
+
+</mapper>
