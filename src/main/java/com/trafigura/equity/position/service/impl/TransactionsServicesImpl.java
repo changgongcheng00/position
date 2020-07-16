@@ -8,6 +8,7 @@ import com.trafigura.equity.position.entity.Position;
 import com.trafigura.equity.position.entity.Transactions;
 import com.trafigura.equity.position.service.TransactionsServices;
 import com.trafigura.equity.position.util.ResponseData;
+import jdk.nashorn.internal.ir.annotations.Ignore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.BeanUtils;
@@ -25,8 +26,10 @@ import org.springframework.util.StringUtils;
 import redis.clients.jedis.Jedis;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 /**
@@ -48,6 +51,7 @@ public class TransactionsServicesImpl implements TransactionsServices {
     private String password;
 
     private static final String TRANSACTION_KEY = "transactions";
+    private static Pattern pattern = Pattern.compile("^\\-?[0-9]*$");
 
     @Autowired
     private TransactionsDao transactionsDao;
@@ -77,7 +81,9 @@ public class TransactionsServicesImpl implements TransactionsServices {
             return ResponseData.error(500,"参数异常:请输入正确的SecurityCode[REL/ITC/INF] " +
                 "OperationCode[INSERT/UPDATE/CANCEL] deal[Buy/Sell]");
         }
-
+        if(!isNumber(tradeAddDto.getQuantity().toString())){
+            return ResponseData.error(500,"参数异常: quantity必须是数字类型");
+        }
         try {
             Transactions transactions = new Transactions();
             BeanUtils.copyProperties(tradeAddDto,transactions);
@@ -112,6 +118,57 @@ public class TransactionsServicesImpl implements TransactionsServices {
 
     @Override
     public ResponseData dealEquity(){
+        List<Transactions> transactionsList = transactionsDao.list();
+        Map<Integer, List<Transactions>> collect = transactionsList.stream().sorted(Comparator.comparing(Transactions::getTradeId)).collect(Collectors.groupingBy(Transactions::getTradeId));
+        for (Map.Entry<Integer, List<Transactions>> listEntry : collect.entrySet()) {
+            List<Transactions> trList = listEntry.getValue();
+            for (Transactions transactions : trList) {
+                Position p = null;
+                switch (transactions.getOperation()){
+                    case "INSERT":
+                        //取出 运算 放入
+                        p = positionDao.getBySecurityCode(transactions.getSecurityCode());
+                        int quantity = 0;
+                        if(p != null && p.getQuantity() != null){
+                            quantity = p.getQuantity();
+                        }else{
+                            p = new Position();
+                            p.setSecurityCode(transactions.getSecurityCode());
+                        }
+                        if("Buy".equalsIgnoreCase(transactions.getDeal())){
+                            p.setQuantity(quantity+transactions.getQuantity());
+                        }else{
+                            p.setQuantity(quantity-transactions.getQuantity());
+                        }
+                        positionDao.saveOrUpdate(p);
+                        break;
+                    case "UPDATE":
+                        //放入
+                        p = new Position();
+                        p.setSecurityCode(transactions.getSecurityCode());
+                        if("Buy".equalsIgnoreCase(transactions.getDeal())){
+                            p.setQuantity(transactions.getQuantity());
+                        }else{
+                            p.setQuantity(0-transactions.getQuantity());
+                        }
+                        positionDao.saveOrUpdate(p);
+                        break;
+                    case "CANCEL":
+                        //取消
+                        p = new Position();
+                        p.setSecurityCode(transactions.getSecurityCode());
+                        p.setQuantity(0);
+                        positionDao.saveOrUpdate(p);
+                        break;
+
+                }
+            }
+        }
+        return ResponseData.success();
+    }
+
+    @Ignore
+    public ResponseData dealEquityOld(){
         try {
             List<Transactions> list = transactionsDao.list();
             Map<String, List<Transactions>> collect = list.stream().collect(Collectors.groupingBy(Transactions::getSecurityCode));
@@ -170,6 +227,12 @@ public class TransactionsServicesImpl implements TransactionsServices {
             return ResponseData.error(500,"业务异常");
         }
         return ResponseData.success();
+    }
+
+
+
+    public static boolean isNumber(String str){
+        return pattern.matcher(str).matches();
     }
 
 }

@@ -10,6 +10,12 @@
     id, security_code, quantity
   </sql>
 
+  <select id="list" resultMap="BaseResultMap">
+    select
+    <include refid="Base_Column_List" />
+    from position
+  </select>
+
   <select id="getBySecurityCode" parameterType="java.lang.String" resultMap="BaseResultMap">
     select
     <include refid="Base_Column_List" />
