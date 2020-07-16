@@ -24,5 +24,6 @@ public class JedisTest {
     public void patternTest(){
         Assert.assertTrue(TransactionsServicesImpl.isNumber("50"));
         Assert.assertTrue(TransactionsServicesImpl.isNumber("-20"));
+        Assert.assertFalse(TransactionsServicesImpl.isNumber("aa"));
     }
 }
